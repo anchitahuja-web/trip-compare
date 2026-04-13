@@ -661,7 +661,8 @@ async function htcAnalyse() {
 
     clearInterval(stepInt);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Server error');
+    if (!res.ok) throw new Error(data.error || 'Server error ' + res.status);
+    if (data.error) throw new Error('API error: ' + data.error);
 
     const parsed = repairAndParse(data.raw || '');
 
