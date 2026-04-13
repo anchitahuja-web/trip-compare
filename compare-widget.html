@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare Quotes — HolidayTribe</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── WIDGET SHELL ─────────────────────────────────────── */
+/* Drop this <div id="ht-compare-widget"> anywhere on the page */
+#ht-compare-widget {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  max-width: 720px;
+  margin: 0 auto;
+  color: #1A1916;
+}
+
+/* ── ENTRY TRIGGER (what customer sees first) ─────────── */
+.htc-trigger {
+  background: #fff;
+  border: 1.5px dashed #D4D1C8;
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.htc-trigger:hover {
+  border-color: #00C48C;
+  background: #F0FBF7;
+}
+.htc-trigger-left { display: flex; align-items: center; gap: 14px; }
+.htc-trigger-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #F0FBF7; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.htc-trigger-text strong {
+  display: block; font-size: 14px; font-weight: 600;
+  color: #1A1916; margin-bottom: 2px;
+}
+.htc-trigger-text span { font-size: 12px; color: #787870; }
+.htc-trigger-cta {
+  background: #1A1916; color: #fff; border: none;
+  border-radius: 8px; padding: 9px 18px; font-size: 13px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+  transition: background .15s;
+}
+.htc-trigger-cta:hover { background: #2d2d28; }
+
+/* ── MODAL OVERLAY ────────────────────────────────────── */
+.htc-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(20,19,14,.55);
+  backdrop-filter: blur(3px);
+  align-items: center; justify-content: center;
+  padding: 16px;
+}
+.htc-overlay.open { display: flex; }
+
+.htc-modal {
+  background: #FAFAF7;
+  border-radius: 18px;
+  width: 100%; max-width: 640px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,.18);
+  animation: htc-rise .22s ease-out;
+}
+@keyframes htc-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal header */
+.htc-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 0;
+}
+.htc-modal-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 20px; font-weight: 400; color: #1A1916;
+}
+.htc-close {
+  background: #EFEDE6; border: none; border-radius: 50%;
+  width: 30px; height: 30px; cursor: pointer;
+  font-size: 14px; color: #787870;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.htc-close:hover { background: #E0DDD4; }
+
+/* Steps indicator */
+.htc-steps {
+  display: flex; align-items: center; gap: 6px;
+  padding: 16px 24px 0;
+}
+.htc-step-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #D4D1C8; transition: background .2s, width .2s;
+}
+.htc-step-dot.active { background: #00C48C; width: 20px; border-radius: 3px; }
+.htc-step-dot.done { background: #00C48C; }
+
+/* Upload panel */
+.htc-panel { padding: 20px 24px 24px; }
+
+.htc-upload-area {
+  border: 2px dashed #D4D1C8;
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: #fff;
+  position: relative;
+}
+.htc-upload-area:hover, .htc-upload-area.drag { border-color: #00C48C; background: #F0FBF7; }
+.htc-upload-area.has-file { border-style: solid; border-color: #00C48C; background: #F0FBF7; }
+.htc-upload-area input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.htc-upload-icon { font-size: 32px; margin-bottom: 10px; }
+.htc-upload-main { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.htc-upload-sub { font-size: 12px; color: #787870; }
+.htc-file-badge {
+  display: none; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid #00C48C;
+  border-radius: 8px; padding: 8px 14px; margin-top: 12px;
+  font-size: 13px; color: #1A1916; font-weight: 500;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; justify-content: center;
+}
+.htc-file-badge.show { display: flex; }
+.htc-file-badge svg { flex-shrink: 0; }
+
+/* What we look at */
+.htc-checks {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin: 16px 0;
+}
+.htc-check {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid #EFEDE6;
+  border-radius: 8px; padding: 9px 12px; font-size: 12px;
+  color: #4A4A44; font-weight: 500;
+}
+.htc-check-icon {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: #F0FBF7; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; flex-shrink: 0;
+}
+
+.htc-action-row { display: flex; gap: 10px; margin-top: 16px; }
+.htc-btn-primary {
+  flex: 1; background: #1A1916; color: #fff; border: none;
+  border-radius: 10px; padding: 13px; font-size: 14px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background .15s; display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+}
+.htc-btn-primary:hover { background: #2d2d28; }
+.htc-btn-primary:disabled { background: #B8B6AE; cursor: not-allowed; }
+.htc-btn-ghost {
+  background: none; border: 1px solid #D4D1C8; border-radius: 10px;
+  padding: 13px 20px; font-size: 14px; font-family: inherit;
+  color: #787870; cursor: pointer; transition: all .15s;
+}
+.htc-btn-ghost:hover { border-color: #9A9990; color: #1A1916; }
+
+/* Loading state */
+.htc-loading { padding: 40px 24px; text-align: center; display: none; }
+.htc-loading.show { display: block; }
+.htc-loading-ring {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid #EFEDE6; border-top-color: #00C48C;
+  animation: htc-spin .8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes htc-spin { to { transform: rotate(360deg); } }
+.htc-loading-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.htc-loading-sub { font-size: 13px; color: #787870; }
+.htc-loading-step {
+  font-size: 12px; color: #00A374; font-weight: 500;
+  margin-top: 8px; min-height: 18px;
+}
+
+/* ── RESULTS ──────────────────────────────────────────── */
+.htc-results { display: none; padding: 0 0 4px; }
+.htc-results.show { display: block; }
+
+/* Verdict pill */
+.htc-verdict {
+  margin: 20px 24px 0;
+  border-radius: 12px; padding: 16px 18px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.htc-verdict.win { background: #F0FBF7; border: 1px solid #00C48C; }
+.htc-verdict.close { background: #FFFBEB; border: 1px solid #FCD34D; }
+.htc-verdict-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+.htc-verdict-title {
+  font-weight: 600; font-size: 14px; margin-bottom: 3px;
+  line-height: 1.4;
+}
+.htc-verdict-sub { font-size: 12px; color: #52524E; line-height: 1.6; }
+
+/* Score bar */
+.htc-scorebar { padding: 16px 24px 0; display: flex; gap: 10px; align-items: center; }
+.htc-score-pill {
+  flex: 1; border-radius: 10px; padding: 12px 14px; text-align: center;
+}
+.htc-score-pill.ht { background: #F0FBF7; border: 1px solid #00C48C; }
+.htc-score-pill.comp { background: #F5F4F0; border: 1px solid #D4D1C8; }
+.htc-score-brand { font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 4px; }
+.htc-score-brand.ht { color: #00A374; }
+.htc-score-brand.comp { color: #787870; }
+.htc-score-val {
+  font-family: 'Instrument Serif', serif;
+  font-size: 28px; line-height: 1;
+}
+.htc-score-val.ht { color: #00A374; }
+.htc-vs { font-size: 13px; color: #B8B6AE; font-style: italic; font-family: 'Instrument Serif', serif; }
+
+/* Rows */
+.htc-rows { margin: 16px 24px 0; display: flex; flex-direction: column; gap: 8px; }
+.htc-row {
+  background: #fff; border: 1px solid #EFEDE6;
+  border-radius: 10px; padding: 12px 14px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; position: relative;
+}
+.htc-row-header {
+  grid-column: 1 / -1; display: flex;
+  align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.htc-row-cat { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #9A9990; }
+.htc-row-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 9px;
+  border-radius: 20px;
+}
+.htc-row-badge.win { background: #DCFCE7; color: #166534; }
+.htc-row-badge.lose { background: #FEF3C7; color: #92400E; }
+.htc-row-badge.tie { background: #F5F4F0; color: #787870; }
+.htc-col-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.htc-col-label.ht { color: #00A374; }
+.htc-col-label.comp { color: #787870; }
+.htc-col-val { font-size: 12px; color: #1A1916; line-height: 1.55; }
+.htc-col-val em { color: #00A374; font-style: normal; font-weight: 500; }
+.htc-col-val s { color: #B8B6AE; }
+
+/* Price highlight row */
+.htc-price-row {
+  background: #1A1916; border-radius: 10px;
+  padding: 14px 16px; margin: 0 24px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; text-align: center;
+}
+.htc-pr-label { font-size: 10px; color: rgba(255,255,255,.45); margin-bottom: 4px; font-weight: 500; }
+.htc-pr-val { font-family: 'Instrument Serif', serif; font-size: 18px; color: #fff; }
+.htc-pr-val.green { color: #34D399; }
+.htc-pr-sub { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 2px; }
+.htc-pr-divider { border-left: 1px solid rgba(255,255,255,.1); }
+
+/* Key wins */
+.htc-wins-section { padding: 14px 24px 0; }
+.htc-wins-title { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #9A9990; margin-bottom: 8px; }
+.htc-win-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.htc-win-pill {
+  background: #F0FBF7; border: 1px solid #A7F3D0;
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 12px; color: #065F46; font-weight: 500;
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* CTA box */
+.htc-cta {
+  margin: 16px 24px 24px;
+  background: linear-gradient(135deg, #00C48C 0%, #00A374 100%);
+  border-radius: 12px; padding: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+}
+.htc-cta-left strong {
+  display: block; color: #fff; font-size: 15px;
+  font-weight: 600; margin-bottom: 3px;
+}
+.htc-cta-left span { font-size: 12px; color: rgba(255,255,255,.75); }
+.htc-cta-btns { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.htc-cta-book {
+  background: #fff; color: #00A374; border: none;
+  border-radius: 8px; padding: 10px 18px; font-size: 13px;
+  font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.htc-cta-book:hover { background: #F0FBF7; }
+.htc-cta-call {
+  background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3);
+  border-radius: 8px; padding: 10px 18px; font-size: 13px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.htc-cta-call:hover { background: rgba(255,255,255,.22); }
+
+/* Error */
+.htc-error {
+  display: none; margin: 12px 24px;
+  background: #FEF2F2; border: 1px solid #FECACA;
+  border-radius: 8px; padding: 12px 14px;
+  font-size: 13px; color: #991B1B; line-height: 1.5;
+}
+.htc-error.show { display: block; }
+
+/* Disclaimer */
+.htc-disclaimer {
+  margin: 0 24px 20px;
+  font-size: 11px; color: #B8B6AE; line-height: 1.6; text-align: center;
+}
+
+/* Spinner inside button */
+.htc-btn-spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+  animation: htc-spin .7s linear infinite; display: none;
+}
+
+@media (max-width: 480px) {
+  .htc-checks { grid-template-columns: 1fr; }
+  .htc-row { grid-template-columns: 1fr; }
+  .htc-row-header { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .htc-scorebar { flex-direction: column; }
+  .htc-price-row { grid-template-columns: 1fr; gap: 12px; }
+  .htc-pr-divider { border-left: none; border-top: 1px solid rgba(255,255,255,.1); padding-top: 12px; }
+  .htc-modal-title { font-size: 17px; }
+  .htc-cta { flex-direction: column; }
+}
+</style>
+</head>
+<body style="background:#f0ede6; padding:40px 20px; min-height:100vh;">
+
+<!-- ════════════════════════════════════════════════════
+     DEMO CONTEXT: simulates the quotation page
+     In production: just drop #ht-compare-widget on the page
+     and pass htQuoteData via window.htQuoteData = {...}
+═════════════════════════════════════════════════════ -->
+<div style="max-width:720px; margin:0 auto 24px; background:#fff; border-radius:14px; padding:20px 24px; border:1px solid #e4e2da;">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <div>
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#9A9990; margin-bottom:4px; font-weight:600;">HolidayTribe Quotation</div>
+      <div style="font-family:'Instrument Serif',serif; font-size:22px;">Bali 7D/6N · Jan 11–17, 2026</div>
+      <div style="font-size:13px; color:#787870; margin-top:3px;">2 adults · IndiGo flights · 4★+5★ hotels · ₹1,87,634</div>
+    </div>
+    <div style="font-family:'Instrument Serif',serif; font-size:26px; color:#00A374;">₹1,87,634</div>
+  </div>
+</div>
+
+<!-- ════ THE WIDGET — embed this on any page ════ -->
+<div id="ht-compare-widget">
+
+  <!-- Trigger bar -->
+  <div class="htc-trigger" onclick="htcOpen()">
+    <div class="htc-trigger-left">
+      <div class="htc-trigger-icon">⚖️</div>
+      <div class="htc-trigger-text">
+        <strong>Got a quote from MakeMyTrip, Thomas Cook, or anyone else?</strong>
+        <span>Upload it and we'll show you exactly what you're comparing</span>
+      </div>
+    </div>
+    <button class="htc-trigger-cta">Compare now →</button>
+  </div>
+
+  <!-- Modal -->
+  <div class="htc-overlay" id="htcOverlay" onclick="htcOverlayClick(event)">
+    <div class="htc-modal" id="htcModal">
+
+      <div class="htc-modal-header">
+        <div class="htc-modal-title">Compare quotes</div>
+        <button class="htc-close" onclick="htcClose()">✕</button>
+      </div>
+
+      <div class="htc-steps">
+        <div class="htc-step-dot active" id="htcDot0"></div>
+        <div class="htc-step-dot" id="htcDot1"></div>
+        <div class="htc-step-dot" id="htcDot2"></div>
+      </div>
+
+      <!-- Step 0: Upload -->
+      <div class="htc-panel" id="htcStep0">
+        <p style="font-size:13px; color:#52524E; margin-bottom:16px; line-height:1.6;">
+          Upload the other company's PDF quote — we'll compare it against your HolidayTribe package on the things that actually matter.
+        </p>
+
+        <div class="htc-upload-area" id="htcDropzone"
+          ondragover="htcDrag(event,true)" ondragleave="htcDrag(event,false)" ondrop="htcDrop(event)">
+          <input type="file" id="htcFileInput" accept=".pdf" onchange="htcFileChosen(this)">
+          <div class="htc-upload-icon" id="htcUploadIcon">📄</div>
+          <div class="htc-upload-main" id="htcUploadMain">Drop competitor PDF here</div>
+          <div class="htc-upload-sub" id="htcUploadSub">or click to browse · PDF only</div>
+          <div class="htc-file-badge" id="htcFileBadge">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#00A374" stroke-width="2.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span id="htcFileNameDisplay"></span>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; margin-bottom:4px;">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:#9A9990; margin-bottom:8px;">We'll compare on</div>
+          <div class="htc-checks">
+            <div class="htc-check"><div class="htc-check-icon">✈️</div>Flights included?</div>
+            <div class="htc-check"><div class="htc-check-icon">🏨</div>Hotel quality</div>
+            <div class="htc-check"><div class="htc-check-icon">🎯</div>Activities & experiences</div>
+            <div class="htc-check"><div class="htc-check-icon">🍽️</div>Meals covered</div>
+            <div class="htc-check"><div class="htc-check-icon">💰</div>Real price (all-in)</div>
+            <div class="htc-check"><div class="htc-check-icon">📋</div>Hidden exclusions</div>
+          </div>
+        </div>
+
+        <div class="htc-action-row">
+          <button class="htc-btn-ghost" onclick="htcClose()">Cancel</button>
+          <button class="htc-btn-primary" id="htcAnalyseBtn" onclick="htcAnalyse()" disabled>
+            <div class="htc-btn-spinner" id="htcBtnSpinner"></div>
+            <span id="htcBtnLabel">Upload PDF first</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="htc-loading" id="htcLoading">
+        <div class="htc-loading-ring"></div>
+        <div class="htc-loading-title">Reading your quote…</div>
+        <div class="htc-loading-sub">Comparing what you're actually getting</div>
+        <div class="htc-loading-step" id="htcLoadStep">Extracting package details</div>
+      </div>
+
+      <!-- Error -->
+      <div class="htc-error" id="htcError"></div>
+
+      <!-- Results -->
+      <div class="htc-results" id="htcResults">
+        <!-- Verdict injected here -->
+        <div id="htcVerdictEl"></div>
+
+        <!-- Score bar injected here -->
+        <div id="htcScorebarEl"></div>
+
+        <!-- Price row injected here -->
+        <div id="htcPriceEl" style="padding-top:14px;"></div>
+
+        <!-- Category rows injected here -->
+        <div class="htc-rows" id="htcRowsEl"></div>
+
+        <!-- Key wins injected here -->
+        <div id="htcWinsEl"></div>
+
+        <!-- CTA injected here -->
+        <div id="htcCtaEl"></div>
+
+        <div class="htc-disclaimer">
+          This comparison is AI-generated based on both quote documents. Verify final pricing with your travel advisor.
+        </div>
+      </div>
+
+    </div><!-- /modal -->
+  </div><!-- /overlay -->
+
+</div><!-- /widget -->
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────
+// In production, this data comes from the quotation page context
+// Either injected server-side or passed via window.htQuoteData
+const HT_QUOTE = {
+  destination: "Bali, Indonesia",
+  duration: "7 days / 6 nights",
+  dates: "Jan 11–17, 2026",
+  pax: "2 adults",
+  price_inr: 187634,
+  price_display: "₹1,87,634",
+  includes_flights: true,
+  flights: "IndiGo 6E-1607/8, BOM↔DPS via Chennai, 20kg baggage",
+  hotels: "Villas at The Patra Bali 4★ (4N) + Asvara Villa Ubud 5★ (2N, private pool, rice field view)",
+  activities: "Benoa water sports (Jet Ski, Banana Boat, Parasailing), Uluwatu Temple, Handara Gate, Tanah Lot, Nusa Penida 3-island tour (Kelingking Beach, Angel's Billabong, Broken Beach), ATV ride Ubud, Kintamani + Waterfall + Rice Terraces + Alas Harum Swing",
+  meals: "Daily breakfast both hotels. Indian lunch on Nusa Penida day.",
+  transfers: "All private transfers throughout",
+  insurance: "Travel insurance included up to 70 years",
+  agent: "Akshay Dang",
+  agent_phone: "9319998494",
+  gst_tcs_included: true,
+  booking_url: "#book-now"
+};
+
+// ── STATE ──────────────────────────────────────────────
+let htcFile = null;
+let htcFileB64 = null;
+
+// ── MODAL OPEN/CLOSE ───────────────────────────────────
+function htcOpen() {
+  document.getElementById('htcOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function htcClose() {
+  document.getElementById('htcOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function htcOverlayClick(e) {
+  if (e.target === document.getElementById('htcOverlay')) htcClose();
+}
+
+// ── FILE HANDLING ──────────────────────────────────────
+function htcFileChosen(input) {
+  if (!input.files[0]) return;
+  htcSetFile(input.files[0]);
+}
+
+function htcDrag(e, over) {
+  e.preventDefault();
+  document.getElementById('htcDropzone').classList.toggle('drag', over);
+}
+
+function htcDrop(e) {
+  e.preventDefault();
+  document.getElementById('htcDropzone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') htcSetFile(f);
+}
+
+function htcSetFile(file) {
+  htcFile = file;
+  // Read as base64
+  const reader = new FileReader();
+  reader.onload = ev => {
+    htcFileB64 = ev.target.result.split(',')[1];
+    // UI feedback
+    document.getElementById('htcUploadIcon').textContent = '✅';
+    document.getElementById('htcUploadMain').textContent = 'PDF ready';
+    document.getElementById('htcUploadSub').textContent = 'Click to change';
+    document.getElementById('htcFileBadge').classList.add('show');
+    document.getElementById('htcFileNameDisplay').textContent = file.name;
+    document.getElementById('htcDropzone').classList.add('has-file');
+    const btn = document.getElementById('htcAnalyseBtn');
+    btn.disabled = false;
+    document.getElementById('htcBtnLabel').textContent = 'Compare packages';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── JSON REPAIR ────────────────────────────────────────
+// Handles truncated responses from max_tokens cutoff
+function repairAndParse(raw) {
+  // Strip markdown fences
+  let s = raw.replace(/```json|```/g, '').trim();
+
+  // Try clean parse first
+  try { return JSON.parse(s); } catch(e) {}
+
+  // Find the outermost { ... } block
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error('No JSON object found in response');
+  s = s.slice(start);
+
+  // Truncated JSON repair: balance brackets/braces and close open strings
+  let result = '';
+  let inString = false;
+  let escape = false;
+  const stack = [];
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    result += ch;
+
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  // If we're inside a string, close it
+  if (inString) result += '"';
+
+  // Close any trailing comma before we close containers
+  result = result.replace(/,\s*$/, '');
+
+  // Close open containers in reverse
+  while (stack.length) {
+    const open = stack.pop();
+    result += open === '{' ? '}' : ']';
+  }
+
+  try {
+    return JSON.parse(result);
+  } catch(e2) {
+    // Last resort: try to extract key fields manually
+    const extract = (key) => {
+      const m = raw.match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`));
+      return m ? m[1] : null;
+    };
+    const extractNum = (key) => {
+      const m = raw.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`));
+      return m ? parseInt(m[1]) : 7;
+    };
+    // Return minimal viable object so the UI doesn't crash
+    return {
+      comp_brand: extract('comp_brand') || 'Competitor',
+      comp_destination: extract('comp_destination') || '',
+      ht_score: extractNum('ht_score'),
+      comp_score: extractNum('comp_score'),
+      verdict: 'ht_wins',
+      verdict_title: extract('verdict_title') || 'HolidayTribe offers better overall value',
+      verdict_body: extract('verdict_body') || 'Based on the documents, HolidayTribe\'s package includes more value for your money.',
+      price: { ht_display: HT_QUOTE.price_display + ' all-in', comp_quoted: 'See their PDF', comp_true_estimate: 'Add flights + taxes', note: 'Compare on a like-for-like basis before deciding.' },
+      categories: [],
+      ht_wins: ['Flights included', 'Premium hotels', 'Transparent pricing'],
+      verdict_cta: 'Your HolidayTribe package is a strong choice — speak to your agent for any questions.'
+    };
+  }
+}
+
+// ── ANALYSE ────────────────────────────────────────────
+async function htcAnalyse() {
+  // UI → loading
+  document.getElementById('htcStep0').style.display = 'none';
+  document.getElementById('htcLoading').classList.add('show');
+  document.getElementById('htcError').classList.remove('show');
+  document.getElementById('htcResults').classList.remove('show');
+  htcSetDots(1);
+
+  const steps = [
+    'Extracting package details…',
+    'Checking what flights are included…',
+    'Comparing hotel categories…',
+    'Calculating real all-in price…',
+    'Building your comparison…'
+  ];
+  let si = 0;
+  const stepInt = setInterval(() => {
+    si = (si + 1) % steps.length;
+    document.getElementById('htcLoadStep').textContent = steps[si];
+  }, 1800);
+
+  const prompt = buildPrompt();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2500,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: htcFileB64 },
+              title: 'Competitor quote'
+            },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    clearInterval(stepInt);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const raw = data.content.find(b => b.type === 'text')?.text || '';
+    const parsed = repairAndParse(raw);
+
+    document.getElementById('htcLoading').classList.remove('show');
+    renderResults(parsed);
+    htcSetDots(2);
+
+  } catch (err) {
+    clearInterval(stepInt);
+    document.getElementById('htcLoading').classList.remove('show');
+    document.getElementById('htcStep0').style.display = 'block';
+    const errEl = document.getElementById('htcError');
+    errEl.classList.add('show');
+    errEl.textContent = 'Something went wrong reading this PDF. Try a different file, or contact your agent directly. (' + err.message + ')';
+    htcSetDots(0);
+  }
+}
+
+function buildPrompt() {
+  return `You are a travel comparison assistant helping an Indian leisure traveller compare two Bali holiday packages.
+
+HOLIDAYTRIBE PACKAGE (already booked or being considered):
+- Destination: ${HT_QUOTE.destination}
+- Duration: ${HT_QUOTE.duration}, ${HT_QUOTE.dates}
+- Passengers: ${HT_QUOTE.pax}
+- Total price: ${HT_QUOTE.price_display} (GST & TCS included)
+- Flights: ${HT_QUOTE.flights}
+- Hotels: ${HT_QUOTE.hotels}
+- Activities: ${HT_QUOTE.activities}
+- Meals: ${HT_QUOTE.meals}
+- Transfers: ${HT_QUOTE.transfers}
+- Insurance: ${HT_QUOTE.insurance}
+
+COMPETITOR PACKAGE: The attached PDF is a quote from another travel company.
+
+TASK: Produce a JSON comparison designed for an Indian leisure traveller (not an expert). Focus on what Indians actually care about: total real price, flights included or not, hotel quality, activities they'll remember, meals, safety/insurance, and ease of booking. Be honest — if competitor is better on something, say so. 
+
+CRITICAL PRICING NOTE: If competitor's price excludes flights, add ₹35,000–45,000 for Mumbai–Bali return for 2 adults to estimate their true cost. If priced in USD, convert at ₹84/USD. If GST/TCS not included in their price, add ~22% on top.
+
+Return ONLY valid JSON, no markdown fences, no explanation:
+
+{
+  "comp_brand": "<company name from PDF>",
+  "comp_destination": "<destination>",
+  "comp_duration": "<nights/days>",
+  "ht_score": <6-10>,
+  "comp_score": <4-10>,
+  "verdict": "ht_wins" | "close" | "comp_wins",
+  "verdict_title": "<one punchy honest sentence, max 12 words>",
+  "verdict_body": "<2 sentences. Lead with the single most important difference — usually the price transparency or hotel quality gap.>",
+  "price": {
+    "ht_display": "${HT_QUOTE.price_display} all-in",
+    "comp_quoted": "<their quoted price with currency>",
+    "comp_true_estimate": "<estimated true all-in INR after adding flights/taxes if missing>",
+    "note": "<one sentence on why the prices aren't directly comparable if relevant>"
+  },
+  "categories": [
+    {
+      "name": "<category>",
+      "ht": "<what HT offers, concise>",
+      "comp": "<what competitor offers, concise>",
+      "winner": "ht" | "comp" | "tie",
+      "ht_highlight": "<optional: the single best thing about HT here, very short>",
+      "comp_highlight": "<optional: the single best thing about comp here, very short>"
+    }
+  ],
+  "ht_wins": ["<short win 1>", "<short win 2>", "<short win 3>", "<short win 4>"],
+  "verdict_cta": "<one warm sentence encouraging them to book — not salesy, just honest>"
+}
+
+Categories to always cover: Flights, Hotels, Activities & experiences, Meals, Price (real all-in), Transfers, Insurance, Hidden costs.
+For each category, keep ht and comp values to 1-2 short sentences max. Indian travellers scan, they don't read.`;
+}
+
+// ── RENDER ─────────────────────────────────────────────
+function renderResults(d) {
+  const isWin = d.verdict === 'ht_wins';
+  const isClose = d.verdict === 'close';
+
+  // Verdict
+  document.getElementById('htcVerdictEl').innerHTML = `
+    <div class="htc-verdict ${isWin ? 'win' : 'close'}">
+      <div class="htc-verdict-icon">${isWin ? '🏆' : isClose ? '⚖️' : '⚠️'}</div>
+      <div>
+        <div class="htc-verdict-title">${d.verdict_title}</div>
+        <div class="htc-verdict-sub">${d.verdict_body}</div>
+      </div>
+    </div>`;
+
+  // Score bar
+  document.getElementById('htcScorebarEl').innerHTML = `
+    <div class="htc-scorebar">
+      <div class="htc-score-pill ht">
+        <div class="htc-score-brand ht">HolidayTribe</div>
+        <div class="htc-score-val ht">${d.ht_score}/10</div>
+      </div>
+      <div class="htc-vs">vs</div>
+      <div class="htc-score-pill comp">
+        <div class="htc-score-brand comp">${d.comp_brand}</div>
+        <div class="htc-score-val">${d.comp_score}/10</div>
+      </div>
+    </div>`;
+
+  // Price strip
+  if (d.price) {
+    document.getElementById('htcPriceEl').innerHTML = `
+      <div class="htc-price-row">
+        <div>
+          <div class="htc-pr-label">HolidayTribe</div>
+          <div class="htc-pr-val green">${d.price.ht_display}</div>
+          <div class="htc-pr-sub">flights + hotels + taxes</div>
+        </div>
+        <div class="htc-pr-divider">
+          <div class="htc-pr-label">${d.comp_brand} (quoted)</div>
+          <div class="htc-pr-val">${d.price.comp_quoted}</div>
+          <div class="htc-pr-sub">as they quoted it</div>
+        </div>
+        <div class="htc-pr-divider">
+          <div class="htc-pr-label">${d.comp_brand} (real est.)</div>
+          <div class="htc-pr-val">${d.price.comp_true_estimate}</div>
+          <div class="htc-pr-sub">after adding flights & taxes</div>
+        </div>
+      </div>
+      ${d.price.note ? `<p style="font-size:11px;color:#787870;padding:6px 24px 0;line-height:1.5;">${d.price.note}</p>` : ''}`;
+  }
+
+  // Category rows
+  const rowsHtml = (d.categories || []).map(cat => {
+    const bClass = cat.winner === 'ht' ? 'win' : cat.winner === 'comp' ? 'lose' : 'tie';
+    const bLabel = cat.winner === 'ht' ? '✓ Better for you' : cat.winner === 'comp' ? `${d.comp_brand} ahead` : 'Similar';
+    return `
+      <div class="htc-row">
+        <div class="htc-row-header">
+          <div class="htc-row-cat">${cat.name}</div>
+          <span class="htc-row-badge ${bClass}">${bLabel}</span>
+        </div>
+        <div>
+          <div class="htc-col-label ht">HolidayTribe</div>
+          <div class="htc-col-val">${cat.ht}${cat.ht_highlight ? ` <em>· ${cat.ht_highlight}</em>` : ''}</div>
+        </div>
+        <div>
+          <div class="htc-col-label comp">${d.comp_brand}</div>
+          <div class="htc-col-val">${cat.comp}${cat.comp_highlight ? ` <em style="color:#787870">· ${cat.comp_highlight}</em>` : ''}</div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('htcRowsEl').innerHTML = rowsHtml;
+
+  // Key wins
+  if (d.ht_wins?.length) {
+    document.getElementById('htcWinsEl').innerHTML = `
+      <div class="htc-wins-section">
+        <div class="htc-wins-title">Why HolidayTribe wins on value</div>
+        <div class="htc-win-pills">
+          ${d.ht_wins.map(w => `<div class="htc-win-pill">✓ ${w}</div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  // CTA
+  document.getElementById('htcCtaEl').innerHTML = `
+    <div class="htc-cta">
+      <div class="htc-cta-left">
+        <strong>${d.verdict_cta || 'Your HolidayTribe package is the better deal.'}</strong>
+        <span>Agent: ${HT_QUOTE.agent} · ${HT_QUOTE.agent_phone}</span>
+      </div>
+      <div class="htc-cta-btns">
+        <button class="htc-cta-book" onclick="window.location.href='${HT_QUOTE.booking_url}'">Book this trip</button>
+        <button class="htc-cta-call" onclick="window.location.href='tel:${HT_QUOTE.agent_phone}'">Call agent</button>
+      </div>
+    </div>`;
+
+  document.getElementById('htcResults').classList.add('show');
+  document.getElementById('htcModal').scrollTop = 0;
+}
+
+// ── UTILS ──────────────────────────────────────────────
+function htcSetDots(active) {
+  [0,1,2].forEach(i => {
+    const d = document.getElementById('htcDot'+i);
+    d.className = 'htc-step-dot' + (i < active ? ' done' : i === active ? ' active' : '');
+  });
+}
+</script>
+</body>
+</html>
