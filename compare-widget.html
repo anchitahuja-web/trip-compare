@@ -653,10 +653,10 @@ async function htcAnalyse() {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-  'Content-Type': 'application/json',
-  'x-api-key': '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',
-  'anthropic-version': '2023-06-01',
-  'anthropic-dangerous-direct-browser-access': 'true'
+        'Content-Type': 'application/json',
+        'x-api-key': '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',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
