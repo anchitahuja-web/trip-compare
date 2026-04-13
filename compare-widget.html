@@ -654,7 +654,8 @@ async function htcAnalyse() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json',
     'x-api-key': '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',
-    'anthropic-version': '2023-06-01' },
+    'anthropic-version': '2023-06-01',
+               'anthropic-dangerous-direct-browser-access': 'true'},
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2500,
